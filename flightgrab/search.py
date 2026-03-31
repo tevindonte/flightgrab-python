@@ -13,11 +13,22 @@ from .models import Flight, RouteStats
 
 
 class FlightSearch:
-    """Search and export flights using the FlightGrab HTTP API."""
+    """
+    Search flights: ``backend='api'`` (default) uses FlightGrab stored data; ``backend='local'``
+    uses ``fast-flights`` on your machine (requires ``pip install flightgrab[local]``).
+    """
 
-    def __init__(self, api_url: Optional[str] = None, timeout: float = 45.0):
+    def __init__(
+        self,
+        api_url: Optional[str] = None,
+        timeout: float = 45.0,
+        backend: str = "api",
+        booking_api_key: Optional[str] = None,
+    ):
         self.api_url = get_api_url(api_url)
         self.timeout = timeout
+        self.backend = backend if backend in ("api", "local") else "api"
+        self.booking_api_key = booking_api_key or os.getenv("FLIGHTGRAB_BOOKING_API_KEY")
 
     def find_flights(
         self,
@@ -50,27 +61,38 @@ class FlightSearch:
         Returns:
             Flights sorted by price ascending.
         """
-        params: Dict[str, Any] = {
-            "origin": origin.upper(),
-            "destination": destination.upper(),
-            "limit": min(max(limit, 1), 200),
-        }
-        if date:
-            params["departure_date"] = date
+        if self.backend == "local":
+            if not date:
+                raise ValueError(
+                    "backend='local' requires date=YYYY-MM-DD (live scrape is for a single departure day)."
+                )
+            from .local_search import find_flights_local
 
-        response = requests.get(
-            f"{self.api_url}/api/route-flights",
-            params=params,
-            timeout=self.timeout,
-        )
-        if response.status_code == 404:
-            return []
-        if response.status_code != 200:
-            raise FlightGrabError(f"API error {response.status_code}: {response.text[:500]}")
+            flights = find_flights_local(
+                origin, destination, date, limit=min(max(limit, 1), 200)
+            )
+        else:
+            params: Dict[str, Any] = {
+                "origin": origin.upper(),
+                "destination": destination.upper(),
+                "limit": min(max(limit, 1), 200),
+            }
+            if date:
+                params["departure_date"] = date
 
-        payload = response.json()
-        rows = payload.get("flights") or []
-        flights = [Flight.from_api_row(r) for r in rows]
+            response = requests.get(
+                f"{self.api_url}/api/route-flights",
+                params=params,
+                timeout=self.timeout,
+            )
+            if response.status_code == 404:
+                return []
+            if response.status_code != 200:
+                raise FlightGrabError(f"API error {response.status_code}: {response.text[:500]}")
+
+            payload = response.json()
+            rows = payload.get("flights") or []
+            flights = [Flight.from_api_row(r) for r in rows]
 
         if nonstop_only:
             flights = [f for f in flights if f.stops == 0]
@@ -93,7 +115,12 @@ class FlightSearch:
         return flights
 
     def get_route_info(self, origin: str, destination: str, limit: int = 200) -> RouteStats:
-        """Aggregate min/avg/max and cheapest airline for a route."""
+        """Aggregate min/avg/max and cheapest airline for a route (API backend only)."""
+        if self.backend == "local":
+            raise ValueError(
+                "get_route_info requires aggregated DB data — use backend='api', or call "
+                "find_flights(..., date=YYYY-MM-DD) with backend='local' and compute stats yourself."
+            )
         flights = self.find_flights(origin, destination, limit=limit)
         if not flights:
             return RouteStats(
@@ -180,3 +207,16 @@ class FlightSearch:
             return response.json()
         except Exception:
             return {"ok": True, "raw": response.text}
+
+    def resolve_booking_for_flight(self, flight: Flight):
+        """Resolve booking URLs for a flight (uses ``FLIGHTGRAB_BOOKING_API_KEY`` when server enforces auth)."""
+        from .booking import resolve_booking
+
+        return resolve_booking(
+            flight.origin,
+            flight.destination,
+            flight.departure_date,
+            api_url=self.api_url,
+            api_key=self.booking_api_key,
+            timeout=self.timeout,
+        )

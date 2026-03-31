@@ -12,8 +12,13 @@ Optional extras:
 
 ```bash
 pip install flightgrab[pandas]   # DataFrame export
-pip install flightgrab[dev]      # pytest, black
+pip install flightgrab[local]    # live Google Flights scrape (fast-flights) for backend='local'
+pip install flightgrab[dev]      # pytest, black, fast-flights for tests
 ```
+
+### PyPI vs TestPyPI
+
+Uploading to **TestPyPI** requires an API token created at [test.pypi.org](https://test.pypi.org) — a **pypi.org** token will return **403 Forbidden** on TestPyPI.
 
 ## Quick start
 
@@ -33,6 +38,10 @@ Point at a self-hosted API:
 import os
 os.environ["FLIGHTGRAB_API_URL"] = "http://127.0.0.1:8000"
 ```
+
+**Local scrape** (no FlightGrab DB): `FlightSearch(backend="local")` and `find_flights(..., date="YYYY-MM-DD")` — requires `pip install flightgrab[local]`.
+
+**Server-enforced booking links:** set `FLIGHTGRAB_BOOKING_API_KEY` to a key listed in the API’s `FLIGHTGRAB_BOOKING_API_KEYS` when `FLIGHTGRAB_ENFORCE_BOOKING_AUTH=1` on the server.
 
 ## API surface (HTTP)
 

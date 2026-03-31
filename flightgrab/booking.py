@@ -61,6 +61,15 @@ def _pro_enabled(license_key: Optional[str] = None) -> bool:
     return False
 
 
+def _headers(api_key: Optional[str] = None) -> Dict[str, str]:
+    """Optional X-API-Key when the server sets FLIGHTGRAB_ENFORCE_BOOKING_AUTH."""
+    h: Dict[str, str] = {}
+    key = api_key if api_key is not None else os.getenv("FLIGHTGRAB_BOOKING_API_KEY")
+    if key and str(key).strip():
+        h["X-API-Key"] = str(key).strip()
+    return h
+
+
 def _parse_resolution(data: Dict[str, Any]) -> BookingResolution:
     url = data.get("url")
     if not url:
@@ -81,6 +90,7 @@ def resolve_booking(
     departure_date: str,
     api_url: Optional[str] = None,
     timeout: float = 60.0,
+    api_key: Optional[str] = None,
 ) -> BookingResolution:
     """
     Call the API and return structured booking data: primary ``url``, ``fallback_url``,
@@ -88,6 +98,8 @@ def resolve_booking(
 
     If the primary link stops working after ~``ttl_seconds``, call ``resolve_booking`` again
     for a fresh URL, or send users to ``fallback_url`` (Google Flights search).
+
+    Pass ``api_key`` (or set ``FLIGHTGRAB_BOOKING_API_KEY``) when the server enforces booking auth.
     """
     base = get_api_url(api_url)
     r = requests.get(
@@ -98,6 +110,7 @@ def resolve_booking(
             "date": departure_date,
             "format": "json",
         },
+        headers=_headers(api_key),
         timeout=timeout,
     )
     r.raise_for_status()
@@ -110,9 +123,12 @@ def fetch_booking_url(
     departure_date: str,
     api_url: Optional[str] = None,
     timeout: float = 60.0,
+    api_key: Optional[str] = None,
 ) -> str:
     """Return only the primary booking URL (same as ``resolve_booking(...).url``)."""
-    return resolve_booking(origin, destination, departure_date, api_url=api_url, timeout=timeout).url
+    return resolve_booking(
+        origin, destination, departure_date, api_url=api_url, timeout=timeout, api_key=api_key
+    ).url
 
 
 def refresh_booking_url(
@@ -121,9 +137,12 @@ def refresh_booking_url(
     departure_date: str,
     api_url: Optional[str] = None,
     timeout: float = 60.0,
+    api_key: Optional[str] = None,
 ) -> BookingResolution:
     """Alias for :func:`resolve_booking` — use when intentionally fetching a fresh link."""
-    return resolve_booking(origin, destination, departure_date, api_url=api_url, timeout=timeout)
+    return resolve_booking(
+        origin, destination, departure_date, api_url=api_url, timeout=timeout, api_key=api_key
+    )
 
 
 def open_booking_link(
@@ -132,6 +151,7 @@ def open_booking_link(
     license_key: Optional[str] = None,
     timeout: float = 60.0,
     use_fallback: bool = False,
+    api_key: Optional[str] = None,
 ) -> BookingResolution:
     """
     Resolve URLs and open one in the default browser (Pro-gated).
@@ -146,6 +166,7 @@ def open_booking_link(
         flight.departure_date,
         api_url=api_url,
         timeout=timeout,
+        api_key=api_key,
     )
     open_url = res.fallback_url if use_fallback and res.fallback_url else res.url
     webbrowser.open(open_url)
@@ -157,6 +178,14 @@ def open_fallback_search(
     api_url: Optional[str] = None,
     license_key: Optional[str] = None,
     timeout: float = 60.0,
+    api_key: Optional[str] = None,
 ) -> BookingResolution:
     """Pro-gated: open ``fallback_url`` (Google Flights search) from a fresh resolution."""
-    return open_booking_link(flight, api_url=api_url, license_key=license_key, timeout=timeout, use_fallback=True)
+    return open_booking_link(
+        flight,
+        api_url=api_url,
+        license_key=license_key,
+        timeout=timeout,
+        use_fallback=True,
+        api_key=api_key,
+    )
