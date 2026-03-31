@@ -1,0 +1,83 @@
+# FlightGrab (Python)
+
+Client library for **[FlightGrab](https://flightgrab.cc)** flight deals: search stored routes, export to CSV/JSON, optional pandas, and (Pro-gated) browser booking links.
+
+## Install
+
+```bash
+pip install flightgrab
+```
+
+Optional extras:
+
+```bash
+pip install flightgrab[pandas]   # DataFrame export
+pip install flightgrab[dev]      # pytest, black
+```
+
+## Quick start
+
+```python
+from flightgrab import FlightSearch
+
+search = FlightSearch()
+flights = search.find_flights("ATL", "MIA", date="2026-04-15", limit=20)
+
+for f in flights:
+    print(f)   # Spirit: $89 (nonstop)
+```
+
+Point at a self-hosted API:
+
+```python
+import os
+os.environ["FLIGHTGRAB_API_URL"] = "http://127.0.0.1:8000"
+```
+
+## API surface (HTTP)
+
+The client uses public endpoints on the FlightGrab backend:
+
+- `GET /api/route-flights` — list flights for an origin/destination (optional `departure_date`, `limit`)
+- `GET /api/book-redirect?format=json` — resolve a fresh booking URL (used by `fetch_booking_url` / Pro `open_booking_link`)
+- `POST /api/alerts/subscribe` — price alerts (**requires** Bearer JWT from app sign-in)
+
+## Pro: open booking in browser
+
+Free tier includes search and export. Opening the system browser to a resolved booking URL is gated so you can sell a Pro license later:
+
+- Set `FLIGHTGRAB_LICENSE_KEY`, or
+- For local development: `FLIGHTGRAB_PRO=1`
+
+```python
+from flightgrab import FlightSearch, open_booking_link
+
+# After setting FLIGHTGRAB_PRO=1 or a license key:
+search = FlightSearch()
+flights = search.find_flights("ATL", "MIA", date="2026-04-15", limit=1)
+open_booking_link(flights[0])
+```
+
+`fetch_booking_url(...)` returns the URL **without** Pro — use it to build your own flow without `webbrowser`.
+
+## CLI
+
+```bash
+flightgrab search ATL MIA --date 2026-04-15 --json
+```
+
+## Development
+
+```bash
+cd flightgrab-python
+pip install -e ".[dev]"
+pytest
+```
+
+## License
+
+MIT — see [LICENSE](LICENSE).
+
+## Author
+
+Tevin Parboosingh — [flightgrab.cc](https://flightgrab.cc)
