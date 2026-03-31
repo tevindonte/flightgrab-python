@@ -18,5 +18,7 @@ if __name__ == "__main__":
     if not flights:
         print("No flights returned.")
         raise SystemExit(1)
-    url = open_booking_link(flights[0])
-    print("Opened:", url)
+    res = open_booking_link(flights[0])
+    print("Opened:", res.url)
+    print("Fallback (if link expires):", res.fallback_url[:80] + "...")
+    print("ttl_seconds:", res.ttl_seconds)

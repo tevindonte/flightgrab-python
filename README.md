@@ -39,7 +39,7 @@ os.environ["FLIGHTGRAB_API_URL"] = "http://127.0.0.1:8000"
 The client uses public endpoints on the FlightGrab backend:
 
 - `GET /api/route-flights` — list flights for an origin/destination (optional `departure_date`, `limit`)
-- `GET /api/book-redirect?format=json` — resolve a fresh booking URL (used by `fetch_booking_url` / Pro `open_booking_link`)
+- `GET /api/book-redirect?format=json` — resolve a booking URL plus **`fallback_url`**, **`ttl_seconds`** (heuristic), and **`source`** (how the link was obtained). If an airline URL goes stale, call again or use the fallback (Google Flights search).
 - `POST /api/alerts/subscribe` — price alerts (**requires** Bearer JWT from app sign-in)
 
 ## Pro: open booking in browser
@@ -58,7 +58,21 @@ flights = search.find_flights("ATL", "MIA", date="2026-04-15", limit=1)
 open_booking_link(flights[0])
 ```
 
-`fetch_booking_url(...)` returns the URL **without** Pro — use it to build your own flow without `webbrowser`.
+`fetch_booking_url(...)` returns only the primary URL (no Pro). For full metadata:
+
+```python
+from flightgrab import resolve_booking
+import time
+
+r = resolve_booking("ATL", "MIA", "2026-04-15")
+t0 = time.time()
+# ... user waits ...
+if r.is_expired(t0):
+    r = resolve_booking("ATL", "MIA", "2026-04-15")  # fresh airline URL
+# or open r.fallback_url (Google Flights search)
+```
+
+`open_booking_link(...)` returns a **`BookingResolution`** (opens browser; Pro-gated).
 
 ## CLI
 
