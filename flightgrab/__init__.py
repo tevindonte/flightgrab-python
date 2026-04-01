@@ -4,7 +4,7 @@ FlightGrab — Python client for flight deal search and export.
 Pro-only browser open: :func:`flightgrab.open_booking_link` (requires license or FLIGHTGRAB_PRO=1).
 """
 
-__version__ = "0.2.0"
+__version__ = "0.2.1"
 __author__ = "Tevin Parboosingh"
 __email__ = "tparboosingh84@gmail.com"
 

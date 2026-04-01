@@ -1,6 +1,6 @@
 # FlightGrab (Python)
 
-Client library for **[FlightGrab](https://flightgrab.cc)** flight deals: search stored routes, export to CSV/JSON, optional pandas, and (Pro-gated) browser booking links.
+Client library for **[FlightGrab](https://flightgrab.cc)** flight deals: search, export to CSV/JSON, optional pandas, and (Pro-gated) browser booking links. **Prices and itineraries come from [Google Flights](https://www.google.com/travel/flights)**–style data (see **Data source** below)—FlightGrab is not affiliated with Google.
 
 ## Install
 
@@ -41,7 +41,20 @@ os.environ["FLIGHTGRAB_API_URL"] = "http://127.0.0.1:8000"
 
 **Local scrape** (no FlightGrab DB): `FlightSearch(backend="local")` and `find_flights(..., date="YYYY-MM-DD")` — requires `pip install flightgrab[local]`.
 
-**Server-enforced booking links:** set `FLIGHTGRAB_BOOKING_API_KEY` to a key listed in the API’s `FLIGHTGRAB_BOOKING_API_KEYS` when `FLIGHTGRAB_ENFORCE_BOOKING_AUTH=1` on the server.
+## Data source (Google Flights)
+
+- **`backend="api"` (default):** Results are served from the FlightGrab API, which stores and refreshes route/price data **sourced from Google Flights search** (same ecosystem users see on [Google Flights](https://www.google.com/travel/flights)).
+- **`backend="local"`:** Uses a live scrape of Google Flights via **fast-flights** (see `pip install flightgrab[local]`).
+
+FlightGrab and this package are **not** affiliated with Google. Use results for planning only; airlines and OTAs set final prices at checkout.
+
+## Premium & API keys (same subscription as the website)
+
+**PyPI is only the Python package.** There is no separate payment on PyPI. **FlightGrab Premium** is one subscription (Stripe), shared with [flightgrab.cc](https://flightgrab.cc): alerts, account features, and **API access for booking links**.
+
+**After you subscribe** (upgrade on the site), activation is **automatic**: Stripe notifies the backend and your account is marked Premium—**no manual approval**, no extra “validation” step from you. Sign in, create an API key once in your account (Developer / keys UI or the documented `/api/keys` endpoints), set `FLIGHTGRAB_BOOKING_API_KEY` in your environment, and the client sends it on booking calls. The server then checks that your subscription is still active; you do not need to re-verify by hand each time.
+
+**Server-enforced booking links:** when `FLIGHTGRAB_ENFORCE_BOOKING_AUTH=1`, the API expects `X-API-Key`. Keys are issued to signed-in Premium users and stored server-side (hashed). Operators can also allow static keys via `FLIGHTGRAB_BOOKING_API_KEYS` for testing or special cases.
 
 ## API surface (HTTP)
 
